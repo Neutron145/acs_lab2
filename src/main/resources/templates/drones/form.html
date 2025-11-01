@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru"
+      th:replace="~{layout :: layout(~{::title}, ~{::section})}">
+<head>
+    <title>Дрон</title>
+</head>
+
+<section>
+    <h1 th:text="${form.id} != null ? 'Редактирование дрона' : 'Создание дрона'">Форма</h1>
+
+    <form th:action="${form.id} != null ? @{/drones/{id}(id=${form.id})} : @{/drones}"
+          method="post"
+          th:object="${form}">
+
+        <div>
+            <label>Тип</label>
+            <input type="text" th:field="*{type}"/>
+        </div>
+
+        <div>
+            <label>Полетный контроллер</label>
+            <select name="controllerId">
+                <!-- ВАЖНО: статический HTML-атрибут value="", НЕ th:value -->
+                <option value="" th:selected="${selectedControllerId == null}">
+                    — без контроллера —
+                </option>
+
+                <option th:each="fc : ${controllers}"
+                        th:value="${fc.id}"
+                        th:text="${fc.name}"
+                        th:selected="${selectedControllerId != null and fc.id == selectedControllerId}">
+                </option>
+            </select>
+        </div>
+
+
+        <div>
+            <label>Масса</label>
+            <input type="number" step="0.01" th:field="*{weight}"/>
+        </div>
+
+        <div>
+            <button type="submit">Сохранить</button>
+            <a th:href="@{/drones}">Отмена</a>
+        </div>
+    </form>
+</section>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru"
+      th:replace="~{layout :: layout(~{::title}, ~{::section})}">
+<head>
+    <title>Полетные контроллеры</title>
+</head>
+<section>
+    <h1>Полетные контроллеры</h1>
+    <p><a th:href="@{/controllers/new}">Добавить контроллер</a></p>
+
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th><th>Название</th><th>Производитель</th><th>Стоимость</th><th></th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="fc : ${items}">
+            <td th:text="${fc.id}">1</td>
+            <td th:text="${fc.name}">Pixhawk</td>
+            <td th:text="${fc.manufacturer}">Holybro</td>
+            <td th:text="${fc.cost}">12000.00</td>
+            <td>
+                <a th:href="@{|/controllers/${fc.id}/edit|}">Изменить</a>
+                <form th:action="@{|/controllers/${fc.id}/delete|}" method="post" style="display:inline">
+                    <button type="submit" onclick="return confirm('Удалить?')">Удалить</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</html>

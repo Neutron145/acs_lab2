@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru"
+      th:fragment="layout(title, content)">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:replace="${title}">Drone App</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<header>
+    <nav>
+        <a th:href="@{/controllers}">Полетные контроллеры</a> |
+        <a th:href="@{/drones}">Дроны</a>
+    </nav>
+</header>
+<main>
+    <div th:replace="${content}">[content]</div>
+</main>
+</body>
+</html>
