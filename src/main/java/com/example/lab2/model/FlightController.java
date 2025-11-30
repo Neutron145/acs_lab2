@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 @Entity
 @Table(name = "flight_controller")
@@ -22,6 +23,7 @@ public class FlightController {
     private BigDecimal cost;
 
     @OneToMany(mappedBy = "controller", fetch = FetchType.LAZY)
+    @JsonManagedReference
     private  List<Drone> drones = new ArrayList<>();
 
     public  FlightController() {}

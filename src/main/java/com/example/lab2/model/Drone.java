@@ -2,6 +2,7 @@ package com.example.lab2.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 @Entity
 @Table(name = "drone")
@@ -16,6 +17,7 @@ public class Drone {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "controller_id")
+    @JsonBackReference
     private FlightController controller;
 
     @Column(precision = 7, scale = 2)
