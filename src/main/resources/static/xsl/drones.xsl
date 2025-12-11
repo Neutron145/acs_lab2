@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
+    <xsl:output method="html" encoding="UTF-8"/>
 
-    <xsl:output method="html" encoding="UTF-8" indent="yes"/>
-
-    <xsl:template match="/">
+    <xsl:template match="/drones">
         <html>
             <head>
                 <meta charset="UTF-8"/>
@@ -12,43 +11,59 @@
             <body>
                 <h1>Список дронов</h1>
 
-                <table border="1" cellpadding="4" cellspacing="0">
+                <h2>Добавить дрон</h2>
+                <form action="/ui/drones/create" method="post">
+                    Тип:
+                    <input type="text" name="type"/><br/>
+                    ID контроллера:
+                    <input type="number" name="controllerId"/><br/><br/>
+                    <button type="submit">Создать</button>
+                </form>
+
+                <hr/>
+
+                <table border="1">
                     <tr>
                         <th>ID</th>
                         <th>Тип</th>
-                        <th>Контроллер</th>
+                        <th>ID контроллера</th>
+                        <th>Название контроллера</th>
+                        <th>Действия</th>
                     </tr>
 
-                    <xsl:for-each select="/*/*">
+                    <xsl:for-each select="drone">
                         <tr>
                             <td><xsl:value-of select="id"/></td>
                             <td><xsl:value-of select="type"/></td>
-
+                            <td><xsl:value-of select="controller/id"/></td>
+                            <td><xsl:value-of select="controller/name"/></td>
                             <td>
-                                <xsl:choose>
-                                    <xsl:when test="controller/name">
-                                        <xsl:value-of select="controller/name"/>
-                                    </xsl:when>
-                                    <xsl:otherwise>
-                                        <xsl:text>-</xsl:text>
-                                    </xsl:otherwise>
-                                </xsl:choose>
+
+                                <form action="/ui/drones/update" method="post" style="display:inline;">
+                                    <input type="hidden" name="id" value="{id}"/>
+                                    Тип:
+                                    <input type="text" name="type" value="{type}"/>
+                                    ID контроллера:
+                                    <input type="number" name="controllerId" value="{controller/id}"/>
+                                    <button type="submit">Сохранить</button>
+                                </form>
+
+                                <form action="/ui/drones/delete" method="post" style="display:inline;">
+                                    <input type="hidden" name="id" value="{id}"/>
+                                    <button type="submit">Удалить</button>
+                                </form>
+
                             </td>
                         </tr>
                     </xsl:for-each>
                 </table>
 
-                <hr/>
+                <br/>
 
-                <p>
-                    <a href="/api/flight-controllers">JSON: список контроллеров (/api/flight-controllers)</a>
-                </p>
-                <p>
-                    <a href="/api/flight-controllers/xml">XML + XSL: список контроллеров (/api/flight-controllers/xml)</a>
-                </p>
-
+                <p><a href="/api/flight-controllers/xml">Список полётных контроллеров (XML+XSL)</a></p>
+                <p><a href="/api/flight-controllers">Список полётных контроллеров (JSON)</a></p>
+                <p><a href="/api/change-log/xml">История изменений</a></p>
             </body>
         </html>
     </xsl:template>
-
 </xsl:stylesheet>

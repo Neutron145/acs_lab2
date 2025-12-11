@@ -4,6 +4,9 @@ import com.example.lab2.model.Drone;
 import com.example.lab2.model.FlightController;
 import com.example.lab2.repository.DroneRepository;
 import com.example.lab2.repository.FlightControllerRepository;
+import com.example.lab2.model.ChangeEvent;
+import com.example.lab2.model.ChangeOperation;
+import com.example.lab2.service.ChangeEventPublisher;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -12,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -19,12 +23,15 @@ import java.util.List;
 public class DroneRestController {
     private final DroneRepository droneRepository;
     private final FlightControllerRepository flightControllerRepository;
+    private final ChangeEventPublisher changeEventPublisher;
 
 
     public DroneRestController(DroneRepository droneRepository,
-                               FlightControllerRepository flightControllerRepository) {
+                               FlightControllerRepository flightControllerRepository,
+                               ChangeEventPublisher changeEventPublisher) {
         this.droneRepository = droneRepository;
         this.flightControllerRepository = flightControllerRepository;
+        this.changeEventPublisher = changeEventPublisher;
     }
 
     @GetMapping(produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE})
@@ -55,6 +62,18 @@ public class DroneRestController {
         }
 
         Drone saved = droneRepository.save(drone);
+
+        ChangeEvent event = new ChangeEvent(
+                "Drone",
+                saved.getId(),
+                ChangeOperation.INSERT,
+                LocalDateTime.now(),
+                "Создан дрон: type=" + saved.getType(),
+                null
+        );
+
+        changeEventPublisher.publish(event);
+
         URI location = URI.create("/api/drones/" + saved.getId());
         return ResponseEntity.created(location).body(saved);
     }
@@ -81,6 +100,17 @@ public class DroneRestController {
         }
 
         Drone saved = droneRepository.save(drone);
+
+        ChangeEvent event = new ChangeEvent(
+                "Drone",
+                saved.getId(),
+                ChangeOperation.UPDATE,
+                LocalDateTime.now(),
+                "Обновлён дрон: type=" + saved.getType(),
+                null
+        );
+        changeEventPublisher.publish(event);
+
         return ResponseEntity.ok(saved);
     }
 
@@ -90,6 +120,17 @@ public class DroneRestController {
             return ResponseEntity.notFound().build();
         }
         droneRepository.deleteById(id);
+
+        ChangeEvent event = new ChangeEvent(
+                "Drone",
+                id,
+                ChangeOperation.DELETE,
+                LocalDateTime.now(),
+                "Удалён дрон с id=" + id,
+                null
+        );
+        changeEventPublisher.publish(event);
+
         return ResponseEntity.noContent().build();
     }
 

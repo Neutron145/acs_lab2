@@ -1,40 +1,60 @@
-# Лабораторная работа №3
+# Лабораторная работа №4
 Выполнил: Абельдинов Рафаэль  
 Группа: 6132-010402D  
 
 
 ## Задание 1  
-JAX-RS и SpringREST схожи, их главное отличие в том, что JAX-RS интегрируется
-в Jakarta EE (реализован в ЛР1), а SpringREST интегрируется в, собственно, Sping (ЛР2).
-SpingREST показался удобнее, так как нет потребности использовать отдельный сервер в виде Glassfish.
+В базу данных была добавлена новая таблица через интерфейс pgAdmin4:
+```
+CREATE TABLE change_log (
+    id           BIGSERIAL PRIMARY KEY,
+    entity_name  VARCHAR(100) NOT NULL,        
+    entity_id    BIGINT       NOT NULL,
+    operation    VARCHAR(20)  NOT NULL,        
+    change_time  TIMESTAMP    NOT NULL DEFAULT NOW(),
+    details      TEXT                         
+);
+```
+`entity_name` - название класса, который был изменен.  
+`entity_id` - ID объекта в таблице, который был изменен.  
+`operation` - тип операции: создание, удаление, изменение. Принимает enum `ChangeOperation`.  
+`change_time` - время изменения.  
+`details` - описание изменения.  
+Для взаимодействия с таблицей в приложении были написаны классы `ChangeLog` и `ChangeLogrepository`, `ChangeEvent` и enum `ChangeOperation`. 
+
 
 ## Задание 2
-За основу была взята ЛР2. Был создан пакет rest, в нем реализованы классы `DroneRestController` 
-и `FlightControllerRestController`, реализующие REST API.  
+В качестве JMS был выбран Apache ActiveMQ Classic. JMS был настроен с помощью `JmsConfig`.
 
 ## Задание 3
-В `pom.xml` был подключён `jackson-dataformat-xml`.  
-В классах `DroneRestController` и `FlightControllerRestController` в аннотациях `@GetMapping`, `@PostMapping`, `@PutMapping` указаны соответствующие
-`produces`/`consumes` (`application/json`, `application/xml`). Формат запроса и ответа
-выбирается на основе заголовков `Content-Type` и `Accept`.
+Был написан класс `ChangeEvent`, который формируется при изменении таблиц: создании, удалении или изменении записи (классы `FlightControllerRepository`,
+`DroneRepository`).  
+Он отправляется в JMS-объект с помощью класса `ChangeEventPublisher`.  
 
 ## Задание 4
-Были реализованы XSL преобразования для отображения таблиц с классами `Drone` 
-`FlightController`, аналогично ЛР2. Кроме этого, была добавлена навигация между XSL и JSON, а также
-между двумя таблицами
+Был реализован компонент MDP для отслеживания изменений. Создан класс `ChangeLogListener`. 
+При получении сообщений типа `ChangeEvent` слушатель создает `ChangeLog` и сохраняет через `ChangeLogRepository` в таблицу 
+change_log.
 
 ## Задание 5
-Были созданы отдельные методы в классах `DroneRestController` и
-`FlightControllerRestController` для добавления XSL-преобразований в 
-XML-ответы REST.
+Уведомления отправляются только для `FlightController` при добавлении или изменении контроллера со стоимостью более 
+10 000.
 
 ## Задание 6
-После запуска приложений можно перейти по ссылке `http://localhost:8080/api/flight-controllers/xml`
-открывается таблица:  
-![img.png](img/img1.png)  
-С данной страницы можно открыть формат JSON данной таблицы:  
-![img.png](img/img2.png)  
-Также можно открыть таблицу с дронами:  
-![img.png](img/img3.png)  
-А из нее, аналогично, JSON-вариант таблицы:
-![img.png](img/img4.png)
+Для отправки уведомлений при выполнении условия был создан класс `NotificationListener`.
+В `applicatinon.properties` были добавлены данные о SMTP сервере почты для отправки уведомлений.  
+
+## Задание 7
+Теперь на страницах с данными о таблицах появилась возможность перейти на страницу с историей изменений:  
+![img.png](img/img1.png)
+
+При переходе отображается таблица с изменениями с возможностью перехода на другие страницы:  
+![img.png](img/img2.png)
+
+Если изменить таблицы (например, изменить цену у существующего объекта и добавить новый), эти изменения будут видны в новой таблице:
+![img.png](img/img3.png)
+
+При изменении дорогого полетного контроллера с ценой больше 10 000, изменение отразится не только в таблице. 
+Придет уведомление на почту об изменении:
+![img.png](img/img4.png)  
+![img.png](img/img5.png)  

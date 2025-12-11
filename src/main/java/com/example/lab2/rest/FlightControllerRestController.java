@@ -3,10 +3,14 @@ package com.example.lab2.rest;
 import org.springframework.http.MediaType;
 import com.example.lab2.model.FlightController;
 import com.example.lab2.repository.FlightControllerRepository;
+import com.example.lab2.model.ChangeEvent;
+import com.example.lab2.model.ChangeOperation;
+import com.example.lab2.service.ChangeEventPublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -14,9 +18,12 @@ import java.util.List;
 public class FlightControllerRestController {
 
     private final FlightControllerRepository flightControllerRepository;
+    private final ChangeEventPublisher changeEventPublisher;
 
-    public FlightControllerRestController(FlightControllerRepository flightControllerRepository) {
+    public FlightControllerRestController(FlightControllerRepository flightControllerRepository,
+                                          ChangeEventPublisher changeEventPublisher) {
         this.flightControllerRepository = flightControllerRepository;
+        this.changeEventPublisher = changeEventPublisher;
     }
 
     @GetMapping(produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE})
@@ -39,6 +46,19 @@ public class FlightControllerRestController {
     public ResponseEntity<FlightController> create(@RequestBody FlightController fc) {
         fc.setId(null);
         FlightController saved = flightControllerRepository.save(fc);
+
+        ChangeEvent event = new ChangeEvent(
+                "FlightController",
+                saved.getId(),
+                ChangeOperation.INSERT,
+                LocalDateTime.now(),
+                "Создан контроллер: name=" + saved.getName() +
+                        ", manufacturer=" + saved.getManufacturer() +
+                        ", cost=" + saved.getCost(),
+                saved.getCost() != null ? saved.getCost().doubleValue() : null
+        );
+        changeEventPublisher.publish(event);
+
         URI location = URI.create("/api/flight-controllers/" + saved.getId());
         return ResponseEntity.created(location).body(saved);
     }
@@ -55,6 +75,19 @@ public class FlightControllerRestController {
         }
         fc.setId(id);
         FlightController saved = flightControllerRepository.save(fc);
+
+        ChangeEvent event = new ChangeEvent(
+                "FlightController",
+                saved.getId(),
+                ChangeOperation.UPDATE,
+                LocalDateTime.now(),
+                "Обновлён контроллер: name=" + saved.getName() +
+                        ", manufacturer=" + saved.getManufacturer() +
+                        ", cost=" + saved.getCost(),
+                saved.getCost() != null ? saved.getCost().doubleValue() : null
+        );
+        changeEventPublisher.publish(event);
+
         return ResponseEntity.ok(saved);
     }
 
@@ -64,6 +97,17 @@ public class FlightControllerRestController {
             return ResponseEntity.notFound().build();
         }
         flightControllerRepository.deleteById(id);
+
+        ChangeEvent event = new ChangeEvent(
+                "FlightController",
+                id,
+                ChangeOperation.DELETE,
+                LocalDateTime.now(),
+                "Удалён контроллер с id=" + id,
+                null
+        );
+        changeEventPublisher.publish(event);
+
         return ResponseEntity.noContent().build();
     }
 

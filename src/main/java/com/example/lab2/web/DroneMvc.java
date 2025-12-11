@@ -1,89 +1,110 @@
 package com.example.lab2.web;
 
 import com.example.lab2.model.Drone;
-import com.example.lab2.service.DroneService;
-import com.example.lab2.service.FlightControllerService;
-import jakarta.validation.Valid;
+import com.example.lab2.model.FlightController;
+import com.example.lab2.model.ChangeEvent;
+import com.example.lab2.model.ChangeOperation;
+import com.example.lab2.repository.DroneRepository;
+import com.example.lab2.repository.FlightControllerRepository;
+import com.example.lab2.service.ChangeEventPublisher;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Controller
-@RequestMapping("/drones")
+@RequestMapping("/ui/drones")
 public class DroneMvc {
 
-    private final DroneService droneService;
-    private final FlightControllerService fcService;
+    private final DroneRepository droneRepository;
+    private final FlightControllerRepository flightControllerRepository;
+    private final ChangeEventPublisher changeEventPublisher;
 
-    public DroneMvc(DroneService droneService, FlightControllerService fcService) {
-        this.droneService = droneService;
-        this.fcService = fcService;
+    public DroneMvc(DroneRepository droneRepository,
+                                FlightControllerRepository flightControllerRepository,
+                                ChangeEventPublisher changeEventPublisher) {
+        this.droneRepository = droneRepository;
+        this.flightControllerRepository = flightControllerRepository;
+        this.changeEventPublisher = changeEventPublisher;
     }
 
-    // Список дронов: модель "items" для шаблона drones/list.html
-    @GetMapping
-    public String list(Model model) {
-        model.addAttribute("items", droneService.getAll());
-        return "drones/list";
-    }
+    @PostMapping("/create")
+    public String create(@RequestParam String type,
+                         @RequestParam(required = false) Long controllerId) {
 
-    // Форма создания: form + список контроллеров + выбранный контроллер = null
-    @GetMapping("/new")
-    public String createForm(Model model) {
-        model.addAttribute("form", new Drone());
-        model.addAttribute("controllers", fcService.getAll());
-        model.addAttribute("selectedControllerId", null);
-        return "drones/form";
-    }
+        Drone drone = new Drone();
+        drone.setType(type);
 
-    // Сохранение нового: при ошибках ВОЗВРАЩАЕМ те же модельные атрибуты
-    @PostMapping
-    public String create(@ModelAttribute("form") @Valid Drone form,
-                         BindingResult br,
-                         @RequestParam(value = "controllerId", required = false) Long controllerId,
-                         Model model) {
-        if (br.hasErrors()) {
-            model.addAttribute("controllers", fcService.getAll());
-            model.addAttribute("selectedControllerId", controllerId);
-            return "drones/form";
+        if (controllerId != null) {
+            flightControllerRepository.findById(controllerId)
+                    .ifPresent(drone::setController);
         }
-        droneService.create(form.getType(), controllerId, form.getWeight());
-        return "redirect:/drones";
+
+        Drone saved = droneRepository.save(drone);
+
+        ChangeEvent event = new ChangeEvent(
+                "Drone",
+                saved.getId(),
+                ChangeOperation.INSERT,
+                LocalDateTime.now(),
+                "Создан дрон: type=" + saved.getType(),
+                null          // cost для дронов не используется
+        );
+        changeEventPublisher.publish(event);
+
+        return "redirect:/api/drones/xml";
     }
 
-    // Форма редактирования: подставляем текущие значения
-    @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable long id, Model model) {
-        Drone d = droneService.getById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Не найден дрон id=" + id));
-        model.addAttribute("form", d);
-        model.addAttribute("controllers", fcService.getAll());
-        model.addAttribute("selectedControllerId", d.getController() != null ? d.getController().getId() : null);
-        return "drones/form";
-    }
+    @PostMapping("/update")
+    public String update(@RequestParam Long id,
+                         @RequestParam String type,
+                         @RequestParam(required = false) Long controllerId) {
 
-    // Обновление: при ошибках — вернуть форму с теми же атрибутами
-    @PostMapping("/{id}")
-    public String update(@PathVariable long id,
-                         @ModelAttribute("form") @Valid Drone form,
-                         BindingResult br,
-                         @RequestParam(value = "controllerId", required = false) Long controllerId,
-                         Model model) {
-        if (br.hasErrors()) {
-            model.addAttribute("controllers", fcService.getAll());
-            model.addAttribute("selectedControllerId", controllerId);
-            return "drones/form";
+        Drone drone = droneRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Drone not found: " + id));
+
+        drone.setType(type);
+
+        if (controllerId != null) {
+            FlightController fc = flightControllerRepository.findById(controllerId)
+                    .orElse(null);
+            drone.setController(fc);
+        } else {
+            drone.setController(null);
         }
-        droneService.update(id, form.getType(), controllerId, form.getWeight());
-        return "redirect:/drones";
+
+        Drone saved = droneRepository.save(drone);
+
+        ChangeEvent event = new ChangeEvent(
+                "Drone",
+                saved.getId(),
+                ChangeOperation.UPDATE,
+                LocalDateTime.now(),
+                "Обновлён дрон: type=" + saved.getType(),
+                null
+        );
+        changeEventPublisher.publish(event);
+
+        return "redirect:/api/drones/xml";
     }
 
-    @PostMapping("/{id}/delete")
-    public String delete(@PathVariable long id) {
-        droneService.delete(id);
-        return "redirect:/drones";
+    @PostMapping("/delete")
+    public String delete(@RequestParam Long id) {
+
+        if (droneRepository.existsById(id)) {
+            droneRepository.deleteById(id);
+
+            ChangeEvent event = new ChangeEvent(
+                    "Drone",
+                    id,
+                    ChangeOperation.DELETE,
+                    LocalDateTime.now(),
+                    "Удалён дрон с id=" + id,
+                    null
+            );
+            changeEventPublisher.publish(event);
+        }
+
+        return "redirect:/api/drones/xml";
     }
 }

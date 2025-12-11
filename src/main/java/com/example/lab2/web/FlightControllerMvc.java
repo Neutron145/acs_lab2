@@ -1,76 +1,99 @@
 package com.example.lab2.web;
 
 import com.example.lab2.model.FlightController;
-import com.example.lab2.service.FlightControllerService;
-import jakarta.validation.Valid;
+import com.example.lab2.model.ChangeEvent;
+import com.example.lab2.model.ChangeOperation;
+import com.example.lab2.repository.FlightControllerRepository;
+import com.example.lab2.service.ChangeEventPublisher;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Controller
-@RequestMapping("/controllers")
+@RequestMapping("/ui/flight-controllers")
 public class FlightControllerMvc {
-    private final FlightControllerService service;
 
-    public FlightControllerMvc(FlightControllerService service) {
-        this.service = service;
+    private final FlightControllerRepository flightControllerRepository;
+    private final ChangeEventPublisher changeEventPublisher;
+
+    public FlightControllerMvc(FlightControllerRepository flightControllerRepository,
+                               ChangeEventPublisher changeEventPublisher) {
+        this.flightControllerRepository = flightControllerRepository;
+        this.changeEventPublisher = changeEventPublisher;
     }
 
-    /** Список */
-    @GetMapping
-    public String list(Model model) {
-        model.addAttribute("items", service.getAll());
-        return "controllers/list";
+    @PostMapping("/create")
+    public String create(@RequestParam String name,
+                         @RequestParam(required = false) String manufacturer,
+                         @RequestParam BigDecimal cost) {
+
+        FlightController fc = new FlightController();
+        fc.setName(name);
+        fc.setManufacturer(manufacturer);
+        fc.setCost(cost);
+
+        FlightController saved = flightControllerRepository.save(fc);
+
+        ChangeEvent event = new ChangeEvent(
+                "FlightController",
+                saved.getId(),
+                ChangeOperation.INSERT,
+                LocalDateTime.now(),
+                "Создан контроллер: " + saved.getName(),
+                saved.getCost() != null ? saved.getCost().doubleValue() : null
+        );
+        changeEventPublisher.publish(event);
+
+        return "redirect:/api/flight-controllers/xml";
     }
 
-    /** Форма создания */
-    @GetMapping("/new")
-    public String createForm(Model model) {
-        model.addAttribute("form", new FlightController());
-        return "controllers/form";
+    @PostMapping("/update")
+    public String update(@RequestParam Long id,
+                         @RequestParam String name,
+                         @RequestParam(required = false) String manufacturer,
+                         @RequestParam BigDecimal cost) {
+
+        FlightController fc = flightControllerRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("FlightController not found: " + id));
+
+        fc.setName(name);
+        fc.setManufacturer(manufacturer);
+        fc.setCost(cost);
+
+        FlightController saved = flightControllerRepository.save(fc);
+
+        ChangeEvent event = new ChangeEvent(
+                "FlightController",
+                saved.getId(),
+                ChangeOperation.UPDATE,
+                LocalDateTime.now(),
+                "Обновлён контроллер: " + saved.getName(),
+                saved.getCost() != null ? saved.getCost().doubleValue() : null
+        );
+        changeEventPublisher.publish(event);
+
+        return "redirect:/api/flight-controllers/xml";
     }
 
-    /** Обработка создания */
-    @PostMapping
-    public String create(@ModelAttribute("form") @Valid FlightController form,
-                         BindingResult br,
-                         Model model) {
-        if (br.hasErrors()) {
-            return "controllers/form";
+    @PostMapping("/delete")
+    public String delete(@RequestParam Long id) {
+
+        if (flightControllerRepository.existsById(id)) {
+            flightControllerRepository.deleteById(id);
+
+            ChangeEvent event = new ChangeEvent(
+                    "FlightController",
+                    id,
+                    ChangeOperation.DELETE,
+                    LocalDateTime.now(),
+                    "Удалён контроллер id=" + id,
+                    null
+            );
+            changeEventPublisher.publish(event);
         }
-        service.create(form.getName(), form.getManufacturer(),
-                form.getCost() == null ? BigDecimal.ZERO : form.getCost());
-        return "redirect:/controllers";
-    }
 
-    /** Форма редактирования */
-    @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable long id, Model model) {
-        FlightController fc = service.getById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Не найден контроллер id=" + id));
-        model.addAttribute("form", fc);
-        return "controllers/form";
-    }
-
-    /** Обработка редактирования */
-    @PostMapping("/{id}")
-    public String update(@PathVariable long id,
-                         @ModelAttribute("form") @Valid FlightController form,
-                         BindingResult br) {
-        if (br.hasErrors()) {
-            return "controllers/form";
-        }
-        service.update(id, form.getName(), form.getManufacturer(), form.getCost());
-        return "redirect:/controllers";
-    }
-
-    /** Удаление */
-    @PostMapping("/{id}/delete")
-    public String delete(@PathVariable long id) {
-        service.delete(id);
-        return "redirect:/controllers";
+        return "redirect:/api/flight-controllers/xml";
     }
 }
